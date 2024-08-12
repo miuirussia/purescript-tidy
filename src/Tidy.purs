@@ -1074,7 +1074,8 @@ formatPatternGuard conf (PatternGuard { binder, expr }) = case binder of
 formatWhere :: forall e a. Format (Tuple SourceToken (NonEmptyArray (LetBinding e))) e a
 formatWhere conf (Tuple kw bindings) =
   formatToken conf kw
-    `break` formatLetGroups conf (NonEmptyArray.toArray bindings)
+    `break` indent do
+      formatLetGroups conf (NonEmptyArray.toArray bindings)
 
 formatLetBinding :: forall e a. Format (LetBinding e) e a
 formatLetBinding conf = case _ of

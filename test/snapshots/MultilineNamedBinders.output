@@ -54,11 +54,11 @@ test =
 
 test = a b c
   where
-  ok@
-    { a
-    , b
-    , c
-    } = a b c
+    ok@
+      { a
+      , b
+      , c
+      } = a b c
 
 test = case _ of
   ok@

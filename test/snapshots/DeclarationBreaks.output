@@ -24,25 +24,25 @@ else instance Foo String where
 test :: Int
 test = 42
   where
-  a =
-    1
-  b = 2
+    a =
+      1
+    b = 2
 
-  c :: Int
-  c =
-    let
-      d :: Int
-      d = 3
-      e = 4
-    in
-      do
-        let
-          f =
-            5
+    c :: Int
+    c =
+      let
+        d :: Int
+        d = 3
+        e = 4
+      in
+        do
+          let
+            f =
+              5
 
-          g :: Int
-          g = 6
-        g
+            g :: Int
+            g = 6
+          g
 
 test2 Foo =
   1
@@ -80,25 +80,25 @@ else instance Foo String where
 test :: Int
 test = 42
   where
-  a =
-    1
-  b = 2
+    a =
+      1
+    b = 2
 
-  c :: Int
-  c =
-    let
-      d :: Int
-      d = 3
-      e = 4
-    in
-      do
-        let
-          f =
-            5
+    c :: Int
+    c =
+      let
+        d :: Int
+        d = 3
+        e = 4
+      in
+        do
+          let
+            f =
+              5
 
-          g :: Int
-          g = 6
-        g
+            g :: Int
+            g = 6
+          g
 
 test2 Foo =
   1
