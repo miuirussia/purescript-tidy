@@ -121,35 +121,35 @@ parser =
     <* Arg.flagInfo [ "--version", "-v" ] "Shows the current version." version
     <* Arg.flagHelp
   where
-  pursGlobs =
-    Arg.anyNotFlag "PURS_GLOB" "Globs for PureScript sources."
-      # Arg.unfolded1
+    pursGlobs =
+      Arg.anyNotFlag "PURS_GLOB" "Globs for PureScript sources."
+        # Arg.unfolded1
 
-  workerOptions =
-    Arg.argument [ "--threads", "-t" ]
-      "Number of worker threads to use.\nDefaults to 4."
-      # Arg.int
-      # Arg.default 4
+    workerOptions =
+      Arg.argument [ "--threads", "-t" ]
+        "Number of worker threads to use.\nDefaults to 4."
+        # Arg.int
+        # Arg.default 4
 
-  configOption =
-    Arg.choose "config behavior"
-      [ Arg.flag [ "--config-prefer", "-cp" ]
-          "Always use config files when present, otherwise use CLI options.\nDefault."
-          $> Prefer
-      , Arg.flag [ "--config-require", "-cr" ]
-          "Require the presence of a config file.\nUseful for editors."
-          $> Require
-      , Arg.flag [ "--config-ignore", "-ci" ]
-          "Ignore all configuration files and only use CLI options.\nNot recommended."
-          $> Ignore
-      ]
-      # Arg.default Prefer
+    configOption =
+      Arg.choose "config behavior"
+        [ Arg.flag [ "--config-prefer", "-cp" ]
+            "Always use config files when present, otherwise use CLI options.\nDefault."
+            $> Prefer
+        , Arg.flag [ "--config-require", "-cr" ]
+            "Require the presence of a config file.\nUseful for editors."
+            $> Require
+        , Arg.flag [ "--config-ignore", "-ci" ]
+            "Ignore all configuration files and only use CLI options.\nNot recommended."
+            $> Ignore
+        ]
+        # Arg.default Prefer
 
-  timingOption =
-    Arg.flag [ "--timing" ]
-      "Print the time spent formatting each file."
-      # Arg.boolean
-      # Arg.default false
+    timingOption =
+      Arg.flag [ "--timing" ]
+        "Print the time spent formatting each file."
+        # Arg.boolean
+        # Arg.default false
 
 main :: Effect Unit
 main = launchAff_ do
@@ -281,19 +281,19 @@ main = launchAff_ do
 expandGlobs :: Array String -> Aff (Array String)
 expandGlobs = map dirToGlob >>> expandGlobsWithStatsCwd >>> map onlyFiles
   where
-  dirToGlob path =
-    if Path.extname path == "" then
-      if isJust (String.stripSuffix (Pattern "**") path) then
-        Path.concat [ path, "*.purs" ]
+    dirToGlob path =
+      if Path.extname path == "" then
+        if isJust (String.stripSuffix (Pattern "**") path) then
+          Path.concat [ path, "*.purs" ]
+        else
+          Path.concat [ path, "**", "*.purs" ]
       else
-        Path.concat [ path, "**", "*.purs" ]
-    else
-      path
+        path
 
-  onlyFiles =
-    Map.filter Stats.isFile
-      >>> Map.keys
-      >>> Set.toUnfoldable
+    onlyFiles =
+      Map.filter Stats.isFile
+        >>> Map.keys
+        >>> Set.toUnfoldable
 
 getOptions :: FormatOptions -> Maybe FormatOptions -> FilePath -> ConfigOption -> Aff FormatOptions
 getOptions cliOptions rcOptions filePath = case _ of
@@ -331,33 +331,33 @@ type RcMap = Map FilePath (Maybe FormatOptions)
 resolveRcForDir :: FilePath -> RcMap -> FilePath -> Aff (Tuple (Maybe FormatOptions) RcMap)
 resolveRcForDir root = go List.Nil
   where
-  go :: List FilePath -> RcMap -> FilePath -> Aff (Tuple (Maybe FormatOptions) RcMap)
-  go paths cache dir = case Map.lookup dir cache of
-    Just res ->
-      pure $ unwind cache res paths
-    Nothing -> do
-      let filePath = Path.concat [ dir, rcFileName ]
-      contents <- try $ FS.readTextFile UTF8 filePath
-      case contents of
-        Left _
-          | dir == root ->
-              pure $ unwind cache Nothing (List.Cons dir paths)
-          | otherwise ->
-              go (List.Cons dir paths) cache (Path.dirname dir)
-        Right contents' ->
-          case FormatOptions.fromJson =<< parseJson contents' of
-            Left jsonError ->
-              throwError $ error $ "Could not decode " <> filePath <> ": " <> printJsonDecodeError jsonError
-            Right options -> do
-              operatorsFile <- liftEffect $ traverse (Path.resolve [ dir ]) options.operatorsFile
-              pure $ unwind cache (Just options { operatorsFile = operatorsFile }) (List.Cons dir paths)
+    go :: List FilePath -> RcMap -> FilePath -> Aff (Tuple (Maybe FormatOptions) RcMap)
+    go paths cache dir = case Map.lookup dir cache of
+      Just res ->
+        pure $ unwind cache res paths
+      Nothing -> do
+        let filePath = Path.concat [ dir, rcFileName ]
+        contents <- try $ FS.readTextFile UTF8 filePath
+        case contents of
+          Left _
+            | dir == root ->
+                pure $ unwind cache Nothing (List.Cons dir paths)
+            | otherwise ->
+                go (List.Cons dir paths) cache (Path.dirname dir)
+          Right contents' ->
+            case FormatOptions.fromJson =<< parseJson contents' of
+              Left jsonError ->
+                throwError $ error $ "Could not decode " <> filePath <> ": " <> printJsonDecodeError jsonError
+              Right options -> do
+                operatorsFile <- liftEffect $ traverse (Path.resolve [ dir ]) options.operatorsFile
+                pure $ unwind cache (Just options { operatorsFile = operatorsFile }) (List.Cons dir paths)
 
-  unwind :: RcMap -> Maybe FormatOptions -> List FilePath -> Tuple (Maybe FormatOptions) RcMap
-  unwind cache res = case _ of
-    List.Cons p ps ->
-      unwind (Map.insert p res cache) res ps
-    List.Nil ->
-      Tuple res cache
+    unwind :: RcMap -> Maybe FormatOptions -> List FilePath -> Tuple (Maybe FormatOptions) RcMap
+    unwind cache res = case _ of
+      List.Cons p ps ->
+        unwind (Map.insert p res cache) res ps
+      List.Nil ->
+        Tuple res cache
 
 readStdin :: Aff String
 readStdin = makeAff \k -> do

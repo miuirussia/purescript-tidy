@@ -80,161 +80,161 @@ snapshotFormat accept mbPattern = do
   tested <- for paths runSnapshot
   pure $ groupSnapshots tested
   where
-  groupSnapshots :: Array (Tuple (Array String) SnapshotTest) -> SnapshotResultGroup
-  groupSnapshots =
-    Array.sortWith fst
-      >>> foldl addToGroup (emptyGroup false)
+    groupSnapshots :: Array (Tuple (Array String) SnapshotTest) -> SnapshotResultGroup
+    groupSnapshots =
+      Array.sortWith fst
+        >>> foldl addToGroup (emptyGroup false)
 
-  addToGroup :: SnapshotResultGroup -> Tuple (Array String) SnapshotTest -> SnapshotResultGroup
-  addToGroup (SnapshotResultGroup { results, nested, hasBad }) (Tuple path result) = do
-    let
-      badResult = Array.any (_.result >>> isBad) result.results
-    case Array.uncons path of
+    addToGroup :: SnapshotResultGroup -> Tuple (Array String) SnapshotTest -> SnapshotResultGroup
+    addToGroup (SnapshotResultGroup { results, nested, hasBad }) (Tuple path result) = do
+      let
+        badResult = Array.any (_.result >>> isBad) result.results
+      case Array.uncons path of
+        Nothing ->
+          SnapshotResultGroup
+            { results: Array.snoc results result
+            , nested
+            , hasBad: hasBad || badResult
+            }
+        Just { head, tail } ->
+          SnapshotResultGroup
+            { results
+            , nested: Map.alter (fromMaybe (emptyGroup badResult) >>> flip addToGroup (Tuple tail result) >>> Just) head nested
+            , hasBad: hasBad || badResult
+            }
+
+    emptyGroup :: Boolean -> SnapshotResultGroup
+    emptyGroup hasBad = SnapshotResultGroup
+      { results: []
+      , nested: Map.empty
+      , hasBad
+      }
+
+    goPath :: String -> Maybe { path :: FilePath, name :: String }
+    goPath path = do
+      let
+        splitPath = split (Pattern "/") path
+      name <- filterPath =<< stripSuffix (Pattern ".purs") =<< Array.last splitPath
+      pure { path, name }
+
+    filterPath = case mbPattern of
+      Just pat ->
+        \path ->
+          guard (String.contains pat path) $> path
       Nothing ->
-        SnapshotResultGroup
-          { results: Array.snoc results result
-          , nested
-          , hasBad: hasBad || badResult
-          }
-      Just { head, tail } ->
-        SnapshotResultGroup
-          { results
-          , nested: Map.alter (fromMaybe (emptyGroup badResult) >>> flip addToGroup (Tuple tail result) >>> Just) head nested
-          , hasBad: hasBad || badResult
-          }
-
-  emptyGroup :: Boolean -> SnapshotResultGroup
-  emptyGroup hasBad = SnapshotResultGroup
-    { results: []
-    , nested: Map.empty
-    , hasBad
-    }
-
-  goPath :: String -> Maybe { path :: FilePath, name :: String }
-  goPath path = do
-    let
-      splitPath = split (Pattern "/") path
-    name <- filterPath =<< stripSuffix (Pattern ".purs") =<< Array.last splitPath
-    pure { path, name }
-
-  filterPath = case mbPattern of
-    Just pat ->
-      \path ->
-        guard (String.contains pat path) $> path
-    Nothing ->
-      pure
-
-  makeErrorResult :: String -> Error -> Aff SnapshotTest
-  makeErrorResult name err = pure { name, results: [ { output: "", result: ErrorRunningTest err, directive: "" } ] }
-
-  runSnapshot :: { path :: FilePath, name :: String } -> Aff (Tuple (Array String) SnapshotTest)
-  runSnapshot { path, name } = flip catchError (map (Tuple testPath) <<< makeErrorResult name) do
-    let outputPath = String.replace (Pattern ".purs") (Replacement ".output") path
-    contents <- liftEffect <<< bufferToUTF8 =<< readFile path
-    case parseModule contents of
-      ParseSucceeded mod ->
-        Tuple testPath <$> runSnapshotForModule name outputPath mod
-      ParseSucceededWithErrors mod _ ->
-        Tuple testPath <$> runSnapshotForModule name outputPath mod
-      ParseFailed err -> do
-        let
-          formattedError =
-            printParseError err.error
-              <> " at "
-              <> show (err.position.line + 1)
-              <> ":"
-              <> show (err.position.column + 1)
-        pure (Tuple testPath { name, results: [ { output: "", result: Failed formattedError, directive: "" } ] })
-    where
-    testPath :: Array String
-    testPath = dropEnd 1 $ String.split (Pattern "/") $ snapshotDirectory.trimPath path
-
-  runSnapshotForModule :: forall e. FormatError e => String -> FilePath -> Module e -> Aff SnapshotTest
-  runSnapshotForModule name outputPath mod = do
-    let
-      inputModule = parseDirectivesFromModule mod
-
-      formatModuleWith { printOptions, formatOptions } =
-        formatModule printOptions formatOptions inputModule.module
-
-      defaultFormattedModule =
-        formatModuleWith defaultFormat
-
-      snapshotOutputs =
-        Array.cons (Tuple "Default formatting" defaultFormattedModule)
-          $ map (\(Tuple s d) -> Tuple s (formatModuleWith d))
-          $ Map.toUnfoldable inputModule.directives
-
-      snapshotOutputFileContents = Array.fold
-        [ defaultFormattedModule
-        , inputModule.directives # foldMapWithIndex \directiveSource directive ->
-            "\n"
-              <> directiveSource
-              <> "\n"
-              <> formatModuleWith directive
-        ]
-
-      acceptOutput =
-        writeFile outputPath
-          =<< liftEffect (Buffer.fromString snapshotOutputFileContents UTF8)
-
-    savedOutputFile <- try $ readFile outputPath
-    case savedOutputFile of
-      Left _ -> do
-        acceptOutput
         pure
-          { name
-          , results: map (\(Tuple directive output) -> { result: Saved, output, directive }) snapshotOutputs
-          }
-      Right buffer -> do
-        storedOutput <- liftEffect $ bufferToUTF8 buffer
-        let
-          storedOutputDirectives :: Array String
-          storedOutputDirectives =
-            storedOutput
-              # Regex.match directiveRegex
-              # foldMap (NEA.toUnfoldable >>> Array.catMaybes)
-              # map String.trim
-              # Array.mapMaybe (\input -> if String.contains (String.Pattern "@format") input then Just input else Nothing)
 
-          matchedOutputs =
-            storedOutput
-              # Regex.split directiveRegex
-              # Array.zip snapshotOutputs
+    makeErrorResult :: String -> Error -> Aff SnapshotTest
+    makeErrorResult name err = pure { name, results: [ { output: "", result: ErrorRunningTest err, directive: "" } ] }
 
-          checkOutput :: Tuple (Tuple String String) String -> Aff { output :: String, result :: SnapshotResult, directive :: String }
-          checkOutput (Tuple (Tuple directive output) saved) =
-            if output == saved then
-              pure { output, result: Passed, directive }
-            else if accept then do
-              acceptOutput
-              pure { output, result: Accepted, directive }
-            else do
-              let
-                diffCmd = "diff <(echo \"" <> output <> "\") <(echo \"" <> saved <> "\")"
-              { stdout: diffBuff } <- exec diffCmd
-              diffOutput <- liftEffect $ bufferToUTF8 diffBuff
-              pure { output, result: Failed diffOutput, directive }
+    runSnapshot :: { path :: FilePath, name :: String } -> Aff (Tuple (Array String) SnapshotTest)
+    runSnapshot { path, name } = flip catchError (map (Tuple testPath) <<< makeErrorResult name) do
+      let outputPath = String.replace (Pattern ".purs") (Replacement ".output") path
+      contents <- liftEffect <<< bufferToUTF8 =<< readFile path
+      case parseModule contents of
+        ParseSucceeded mod ->
+          Tuple testPath <$> runSnapshotForModule name outputPath mod
+        ParseSucceededWithErrors mod _ ->
+          Tuple testPath <$> runSnapshotForModule name outputPath mod
+        ParseFailed err -> do
+          let
+            formattedError =
+              printParseError err.error
+                <> " at "
+                <> show (err.position.line + 1)
+                <> ":"
+                <> show (err.position.column + 1)
+          pure (Tuple testPath { name, results: [ { output: "", result: Failed formattedError, directive: "" } ] })
+      where
+        testPath :: Array String
+        testPath = dropEnd 1 $ String.split (Pattern "/") $ snapshotDirectory.trimPath path
 
-          acceptedOutput :: Tuple String String -> Aff { output :: String, result :: SnapshotResult, directive :: String }
-          acceptedOutput (Tuple directive output) =
-            pure { output, result: Accepted, directive }
+    runSnapshotForModule :: forall e. FormatError e => String -> FilePath -> Module e -> Aff SnapshotTest
+    runSnapshotForModule name outputPath mod = do
+      let
+        inputModule = parseDirectivesFromModule mod
 
-        if storedOutputDirectives == Set.toUnfoldable (Map.keys inputModule.directives) then do
-          results <- for matchedOutputs checkOutput
-          pure { name, results }
-        else if accept then do
+        formatModuleWith { printOptions, formatOptions } =
+          formatModule printOptions formatOptions inputModule.module
+
+        defaultFormattedModule =
+          formatModuleWith defaultFormat
+
+        snapshotOutputs =
+          Array.cons (Tuple "Default formatting" defaultFormattedModule)
+            $ map (\(Tuple s d) -> Tuple s (formatModuleWith d))
+            $ Map.toUnfoldable inputModule.directives
+
+        snapshotOutputFileContents = Array.fold
+          [ defaultFormattedModule
+          , inputModule.directives # foldMapWithIndex \directiveSource directive ->
+              "\n"
+                <> directiveSource
+                <> "\n"
+                <> formatModuleWith directive
+          ]
+
+        acceptOutput =
+          writeFile outputPath
+            =<< liftEffect (Buffer.fromString snapshotOutputFileContents UTF8)
+
+      savedOutputFile <- try $ readFile outputPath
+      case savedOutputFile of
+        Left _ -> do
           acceptOutput
-          results <- for snapshotOutputs acceptedOutput
-          pure { name, results }
-        else
-          makeErrorResult name (error "Mismatched format options in output file.")
+          pure
+            { name
+            , results: map (\(Tuple directive output) -> { result: Saved, output, directive }) snapshotOutputs
+            }
+        Right buffer -> do
+          storedOutput <- liftEffect $ bufferToUTF8 buffer
+          let
+            storedOutputDirectives :: Array String
+            storedOutputDirectives =
+              storedOutput
+                # Regex.match directiveRegex
+                # foldMap (NEA.toUnfoldable >>> Array.catMaybes)
+                # map String.trim
+                # Array.mapMaybe (\input -> if String.contains (String.Pattern "@format") input then Just input else Nothing)
 
-  formatModule :: forall e a. PrintOptions -> FormatOptions e a -> Module e -> String
-  formatModule opts conf = Dodo.print Dodo.plainText opts <<< Tidy.toDoc <<< Tidy.formatModule (conf { operators = operators })
+            matchedOutputs =
+              storedOutput
+                # Regex.split directiveRegex
+                # Array.zip snapshotOutputs
 
-  operators :: PrecedenceMap
-  operators = parseOperatorTable defaultOperators
+            checkOutput :: Tuple (Tuple String String) String -> Aff { output :: String, result :: SnapshotResult, directive :: String }
+            checkOutput (Tuple (Tuple directive output) saved) =
+              if output == saved then
+                pure { output, result: Passed, directive }
+              else if accept then do
+                acceptOutput
+                pure { output, result: Accepted, directive }
+              else do
+                let
+                  diffCmd = "diff <(echo \"" <> output <> "\") <(echo \"" <> saved <> "\")"
+                { stdout: diffBuff } <- exec diffCmd
+                diffOutput <- liftEffect $ bufferToUTF8 diffBuff
+                pure { output, result: Failed diffOutput, directive }
+
+            acceptedOutput :: Tuple String String -> Aff { output :: String, result :: SnapshotResult, directive :: String }
+            acceptedOutput (Tuple directive output) =
+              pure { output, result: Accepted, directive }
+
+          if storedOutputDirectives == Set.toUnfoldable (Map.keys inputModule.directives) then do
+            results <- for matchedOutputs checkOutput
+            pure { name, results }
+          else if accept then do
+            acceptOutput
+            results <- for snapshotOutputs acceptedOutput
+            pure { name, results }
+          else
+            makeErrorResult name (error "Mismatched format options in output file.")
+
+    formatModule :: forall e a. PrintOptions -> FormatOptions e a -> Module e -> String
+    formatModule opts conf = Dodo.print Dodo.plainText opts <<< Tidy.toDoc <<< Tidy.formatModule (conf { operators = operators })
+
+    operators :: PrecedenceMap
+    operators = parseOperatorTable defaultOperators
 
 exec :: String -> Aff ExecResult
 exec command = makeAff \k -> do

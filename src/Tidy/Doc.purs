@@ -175,13 +175,13 @@ leadingLineComment str (FormatDoc doc) = FormatDoc doc
   , isEmpty = false
   }
   where
-  comm = LeadingComment
-    { doc: Dodo.text str
-    , left: ForceBreak
-    , lines: 0
-    , multiline: false
-    , right: ForceBreak
-    }
+    comm = LeadingComment
+      { doc: Dodo.text str
+      , left: ForceBreak
+      , lines: 0
+      , multiline: false
+      , right: ForceBreak
+      }
 
 trailingLineComment :: forall a. String -> FormatDoc a -> FormatDoc a
 trailingLineComment str (FormatDoc doc) = FormatDoc doc
@@ -189,12 +189,12 @@ trailingLineComment str (FormatDoc doc) = FormatDoc doc
   , isEmpty = false
   }
   where
-  comm = TrailingComment
-    { doc: Dodo.text str
-    , left: ForceSpace
-    , multiline: false
-    , right: ForceBreak
-    }
+    comm = TrailingComment
+      { doc: Dodo.text str
+      , left: ForceSpace
+      , multiline: false
+      , right: ForceBreak
+      }
 
 formatBlockComment :: forall a. String -> Tuple Boolean (Doc a)
 formatBlockComment = splitLines >>> Array.uncons >>> case _ of
@@ -223,15 +223,15 @@ formatBlockComment = splitLines >>> Array.uncons >>> case _ of
                 (intercalate Dodo.break tailDocs)
             ]
     where
-    prefixSpaces =
-      tail
-        # Array.mapMaybe
-            ( \str -> do
-                let spaces = SCU.length $ String.takeWhile (eq (String.codePointFromChar ' ')) str
-                guard (spaces < SCU.length str) $> spaces
-            )
-        # Array.sort
-        # Array.head
+      prefixSpaces =
+        tail
+          # Array.mapMaybe
+              ( \str -> do
+                  let spaces = SCU.length $ String.takeWhile (eq (String.codePointFromChar ' ')) str
+                  guard (spaces < SCU.length str) $> spaces
+              )
+          # Array.sort
+          # Array.head
 
 leadingBlockComment :: forall a. String -> FormatDoc a -> FormatDoc a
 leadingBlockComment str (FormatDoc doc) = FormatDoc doc
@@ -239,16 +239,16 @@ leadingBlockComment str (FormatDoc doc) = FormatDoc doc
   , isEmpty = false
   }
   where
-  Tuple multi commDoc =
-    formatBlockComment str
+    Tuple multi commDoc =
+      formatBlockComment str
 
-  comm = LeadingComment
-    { doc: commDoc
-    , left: ForceSpace
-    , lines: 0
-    , multiline: multi
-    , right: ForceSpace
-    }
+    comm = LeadingComment
+      { doc: commDoc
+      , left: ForceSpace
+      , lines: 0
+      , multiline: multi
+      , right: ForceSpace
+      }
 
 trailingBlockComment :: forall a. String -> FormatDoc a -> FormatDoc a
 trailingBlockComment str (FormatDoc doc) = FormatDoc doc
@@ -256,15 +256,15 @@ trailingBlockComment str (FormatDoc doc) = FormatDoc doc
   , isEmpty = false
   }
   where
-  Tuple multi commDoc =
-    formatBlockComment str
+    Tuple multi commDoc =
+      formatBlockComment str
 
-  comm = TrailingComment
-    { doc: commDoc
-    , left: ForceSpace
-    , multiline: multi
-    , right: ForceSpace
-    }
+    comm = TrailingComment
+      { doc: commDoc
+      , left: ForceSpace
+      , multiline: multi
+      , right: ForceSpace
+      }
 
 anchor :: forall a. FormatDoc a -> FormatDoc a
 anchor (FormatDoc doc) = case doc.leading of
@@ -498,9 +498,9 @@ joinWithMap
   -> FormatDoc a
 joinWithMap op k = foldl go mempty
   where
-  go a b
-    | isEmpty a = k b
-    | otherwise = op a (k b)
+    go a b
+      | isEmpty a = k b
+      | otherwise = op a (k b)
 
 joinWith
   :: forall f a

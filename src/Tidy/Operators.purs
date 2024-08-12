@@ -27,16 +27,16 @@ parseOperatorPrec = Lexer.lex >>> tokenStreamToArray >>> case _ of
   _ ->
     Nothing
   where
-  tokenStreamToArray :: TokenStream -> Either ParseError (Array Token)
-  tokenStreamToArray = go []
-    where
-    go acc = TokenStream.step >>> case _ of
-      TokenEOF _ _ ->
-        Right acc
-      TokenError _ err _ _ ->
-        Left err
-      TokenCons tok _ next _ ->
-        go (Array.snoc acc tok.value) next
+    tokenStreamToArray :: TokenStream -> Either ParseError (Array Token)
+    tokenStreamToArray = go []
+      where
+        go acc = TokenStream.step >>> case _ of
+          TokenEOF _ _ ->
+            Right acc
+          TokenError _ err _ _ ->
+            Left err
+          TokenCons tok _ next _ ->
+            go (Array.snoc acc tok.value) next
 
 resolveOperatorExports :: forall e. PrecedenceMap -> Module e -> PrecedenceMap
 resolveOperatorExports
@@ -54,28 +54,28 @@ resolveOperatorExports
       foldl goExport precMap $ Array.cons head $ map snd tail
 
   where
-  remappedPrecMap =
-    remapOperators precMap mod
+    remappedPrecMap =
+      remapOperators precMap mod
 
-  goExport pm = fromMaybe pm <<< case _ of
-    ExportOp (Name { name: op }) -> do
-      prec <- lookupOperator (QualifiedOperator Nothing OperatorValue op) remappedPrecMap
-      pure $ insertOperator (QualifiedOperator (Just modName) OperatorValue op) prec pm
-    ExportTypeOp _ (Name { name: op }) -> do
-      prec <- lookupOperator (QualifiedOperator Nothing OperatorType op) remappedPrecMap
-      pure $ insertOperator (QualifiedOperator (Just modName) OperatorType op) prec pm
-    ExportModule _ (Name { name: exportModName }) -> do
-      prec <- Map.lookup (Just exportModName) remappedPrecMap
-      pure $ Map.insertWith Map.union (Just modName) prec pm
-    _ ->
-      Nothing
+    goExport pm = fromMaybe pm <<< case _ of
+      ExportOp (Name { name: op }) -> do
+        prec <- lookupOperator (QualifiedOperator Nothing OperatorValue op) remappedPrecMap
+        pure $ insertOperator (QualifiedOperator (Just modName) OperatorValue op) prec pm
+      ExportTypeOp _ (Name { name: op }) -> do
+        prec <- lookupOperator (QualifiedOperator Nothing OperatorType op) remappedPrecMap
+        pure $ insertOperator (QualifiedOperator (Just modName) OperatorType op) prec pm
+      ExportModule _ (Name { name: exportModName }) -> do
+        prec <- Map.lookup (Just exportModName) remappedPrecMap
+        pure $ Map.insertWith Map.union (Just modName) prec pm
+      _ ->
+        Nothing
 
-  goDecl pm = case _ of
-    DeclFixity { prec: Tuple _ prec, operator } ->
-      case operator of
-        FixityValue _ _ (Name { name: op }) ->
-          insertOperator (QualifiedOperator (Just modName) OperatorValue op) prec pm
-        FixityType _ _ _ (Name { name: op }) ->
-          insertOperator (QualifiedOperator (Just modName) OperatorType op) prec pm
-    _ ->
-      pm
+    goDecl pm = case _ of
+      DeclFixity { prec: Tuple _ prec, operator } ->
+        case operator of
+          FixityValue _ _ (Name { name: op }) ->
+            insertOperator (QualifiedOperator (Just modName) OperatorValue op) prec pm
+          FixityType _ _ _ (Name { name: op }) ->
+            insertOperator (QualifiedOperator (Just modName) OperatorType op) prec pm
+      _ ->
+        pm

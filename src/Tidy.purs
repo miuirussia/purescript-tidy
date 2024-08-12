@@ -114,24 +114,24 @@ instance formatErrorRecoveredError :: FormatError RecoveredError where
       Nothing ->
         mempty
     where
-    formatRecoveredComments :: forall a b. Int -> Array (Comment a) -> Dodo.Doc b
-    formatRecoveredComments ind = _.doc <<< foldl (goComments ind) { line: false, doc: mempty }
+      formatRecoveredComments :: forall a b. Int -> Array (Comment a) -> Dodo.Doc b
+      formatRecoveredComments ind = _.doc <<< foldl (goComments ind) { line: false, doc: mempty }
 
-    goComments :: forall a b. Int -> { line :: Boolean, doc :: Dodo.Doc b } -> Comment a -> { line :: Boolean, doc :: Dodo.Doc b }
-    goComments ind acc = case _ of
-      Comment str
-        | leading <- SCU.take 2 str
-        , leading == "--" || leading == "#!" ->
-            { line: false, doc: acc.doc <> Dodo.text str }
-        | otherwise ->
-            { line: false, doc: acc.doc <> Dodo.lines (Dodo.text <$> splitLines str) }
-      Line _ n ->
-        { line: true, doc: acc.doc <> power Dodo.break n }
-      Space n
-        | acc.line ->
-            { line: false, doc: acc.doc <> Dodo.text (power " " $ max 0 (n - ind)) }
-        | otherwise ->
-            { line: false, doc: acc.doc <> Dodo.text (power " " n) }
+      goComments :: forall a b. Int -> { line :: Boolean, doc :: Dodo.Doc b } -> Comment a -> { line :: Boolean, doc :: Dodo.Doc b }
+      goComments ind acc = case _ of
+        Comment str
+          | leading <- SCU.take 2 str
+          , leading == "--" || leading == "#!" ->
+              { line: false, doc: acc.doc <> Dodo.text str }
+          | otherwise ->
+              { line: false, doc: acc.doc <> Dodo.lines (Dodo.text <$> splitLines str) }
+        Line _ n ->
+          { line: true, doc: acc.doc <> power Dodo.break n }
+        Space n
+          | acc.line ->
+              { line: false, doc: acc.doc <> Dodo.text (power " " $ max 0 (n - ind)) }
+          | otherwise ->
+              { line: false, doc: acc.doc <> Dodo.text (power " " n) }
 
 type Format f e a = FormatOptions e a -> f -> FormatDoc a
 type FormatHanging f e a = FormatOptions e a -> f -> HangingDoc a
@@ -166,11 +166,11 @@ formatWithComments leading trailing doc =
 formatToken :: forall a r. { unicode :: UnicodeOption | r } -> SourceToken -> FormatDoc a
 formatToken conf tok = formatWithComments tok.leadingComments tok.trailingComments tokDoc
   where
-  tokStr = printToken conf.unicode tok.value
-  tokDoc = case tok.value of
-    TokRawString _ -> formatRawString tokStr
-    TokString _ _ -> formatString tokStr
-    _ -> text tokStr
+    tokStr = printToken conf.unicode tok.value
+    tokDoc = case tok.value of
+      TokRawString _ -> formatRawString tokStr
+      TokString _ _ -> formatString tokStr
+      _ -> text tokStr
 
 formatRawString :: forall a. String -> FormatDoc a
 formatRawString = splitLines >>> Array.uncons >>> foldMap \{ head, tail } ->
@@ -220,42 +220,42 @@ formatModule conf (Module { header: ModuleHeader header, body: ModuleBody body }
     , foldr (formatComment leadingLineComment leadingBlockComment) mempty body.trailingComments
     ]
   where
-  formatImports k =
-    joinWithMap break (k <<< formatImportDecl conf)
+    formatImports k =
+      joinWithMap break (k <<< formatImportDecl conf)
 
-  imports =
-    case conf.importSort of
-      ImportSortSource ->
-        formatImports identity header.imports
-      ImportSortIde -> do
-        let { yes, no } = Array.partition isOpenImport sorted
-        formatImports Doc.flatten yes
-          <> forceMinSourceBreaks 2 (formatImports Doc.flatten no)
-        where
-        sorted =
-          header.imports
-            # map toComparison
-            # Array.sortWith fst
-            # map snd
+    imports =
+      case conf.importSort of
+        ImportSortSource ->
+          formatImports identity header.imports
+        ImportSortIde -> do
+          let { yes, no } = Array.partition isOpenImport sorted
+          formatImports Doc.flatten yes
+            <> forceMinSourceBreaks 2 (formatImports Doc.flatten no)
+          where
+            sorted =
+              header.imports
+                # map toComparison
+                # Array.sortWith fst
+                # map snd
 
-        toComparison (ImportDecl decl) = do
-          let modName = nameOf decl.module
-          let qualName = nameOf <<< snd <$> decl.qualified
-          case decl.names of
-            Just (Tuple hiding names) -> do
-              let Tuple cmps names' = sortImportsIde names
-              let order = if isJust hiding then 3 else 1
-              Tuple (ImportModuleCmp modName order cmps qualName) (ImportDecl decl { names = Just (Tuple hiding names') })
-            Nothing ->
-              Tuple (ImportModuleCmp modName 2 [] qualName) (ImportDecl decl)
+            toComparison (ImportDecl decl) = do
+              let modName = nameOf decl.module
+              let qualName = nameOf <<< snd <$> decl.qualified
+              case decl.names of
+                Just (Tuple hiding names) -> do
+                  let Tuple cmps names' = sortImportsIde names
+                  let order = if isJust hiding then 3 else 1
+                  Tuple (ImportModuleCmp modName order cmps qualName) (ImportDecl decl { names = Just (Tuple hiding names') })
+                Nothing ->
+                  Tuple (ImportModuleCmp modName 2 [] qualName) (ImportDecl decl)
 
-        isOpenImport (ImportDecl a) = case a.qualified, a.names of
-          Nothing, Nothing ->
-            true
-          Nothing, Just (Tuple (Just _) _) ->
-            true
-          _, _ ->
-            false
+            isOpenImport (ImportDecl a) = case a.qualified, a.names of
+              Nothing, Nothing ->
+                true
+              Nothing, Just (Tuple (Just _) _) ->
+                true
+              _, _ ->
+                false
 
 data ImportModuleComparison =
   ImportModuleCmp ModuleName Int (Array ImportComparison) (Maybe ModuleName)
@@ -291,22 +291,22 @@ formatImportDecl :: forall e a. Format (ImportDecl e) e a
 formatImportDecl conf (ImportDecl imp) =
   formatToken conf imp.keyword `space` indent (anchor importDeclBody)
   where
-  importDeclBody = case imp.names of
-    Just (Tuple (Just hiding) nameList) ->
-      formatName conf imp."module"
-        `space` anchor (formatToken conf hiding)
-        `flexSpaceBreak` anchor (formatParenListNonEmpty NotGrouped formatImport conf nameList)
-        `space` anchor (foldMap formatImportQualified imp.qualified)
-    Just (Tuple Nothing nameList) ->
-      formatName conf imp."module"
-        `flexSpaceBreak` anchor (formatParenListNonEmpty NotGrouped formatImport conf nameList)
-        `space` anchor (foldMap formatImportQualified imp.qualified)
-    Nothing ->
-      formatName conf imp."module"
-        `space` anchor (foldMap formatImportQualified imp.qualified)
+    importDeclBody = case imp.names of
+      Just (Tuple (Just hiding) nameList) ->
+        formatName conf imp."module"
+          `space` anchor (formatToken conf hiding)
+          `flexSpaceBreak` anchor (formatParenListNonEmpty NotGrouped formatImport conf nameList)
+          `space` anchor (foldMap formatImportQualified imp.qualified)
+      Just (Tuple Nothing nameList) ->
+        formatName conf imp."module"
+          `flexSpaceBreak` anchor (formatParenListNonEmpty NotGrouped formatImport conf nameList)
+          `space` anchor (foldMap formatImportQualified imp.qualified)
+      Nothing ->
+        formatName conf imp."module"
+          `space` anchor (foldMap formatImportQualified imp.qualified)
 
-  formatImportQualified (Tuple as qualName) =
-    formatToken conf as `space` anchor (formatName conf qualName)
+    formatImportQualified (Tuple as qualName) =
+      formatToken conf as `space` anchor (formatName conf qualName)
 
 sortImportsIde :: forall e. DelimitedNonEmpty (Import e) -> Tuple (Array ImportComparison) (DelimitedNonEmpty (Import e))
 sortImportsIde (Wrapped { open, value: Separated { head, tail }, close }) = do
@@ -327,27 +327,27 @@ sortImportsIde (Wrapped { open, value: Separated { head, tail }, close }) = do
     , close
     }
   where
-  toComparison = case _ of
-    ImportValue (Name { name }) ->
-      ImportValueCmp name
-    ImportOp (Name { name }) ->
-      ImportOpCmp name
-    ImportType (Name { name }) Nothing ->
-      ImportTypeCmp name true []
-    ImportType (Name { name }) (Just (DataEnumerated (Wrapped { value }))) ->
-      case value of
-        Nothing ->
-          ImportTypeCmp name true []
-        Just (Separated ctors) ->
-          ImportTypeCmp name true $ (_.name <<< un Name) <$> Array.cons ctors.head (map snd ctors.tail)
-    ImportType (Name { name }) (Just (DataAll _)) ->
-      ImportTypeCmp name false []
-    ImportTypeOp _ (Name { name }) ->
-      ImportTypeOpCmp name
-    ImportClass _ (Name { name }) ->
-      ImportClassCmp name
-    ImportError _ ->
-      ImportErrorCmp
+    toComparison = case _ of
+      ImportValue (Name { name }) ->
+        ImportValueCmp name
+      ImportOp (Name { name }) ->
+        ImportOpCmp name
+      ImportType (Name { name }) Nothing ->
+        ImportTypeCmp name true []
+      ImportType (Name { name }) (Just (DataEnumerated (Wrapped { value }))) ->
+        case value of
+          Nothing ->
+            ImportTypeCmp name true []
+          Just (Separated ctors) ->
+            ImportTypeCmp name true $ (_.name <<< un Name) <$> Array.cons ctors.head (map snd ctors.tail)
+      ImportType (Name { name }) (Just (DataAll _)) ->
+        ImportTypeCmp name false []
+      ImportTypeOp _ (Name { name }) ->
+        ImportTypeOpCmp name
+      ImportClass _ (Name { name }) ->
+        ImportClassCmp name
+      ImportError _ ->
+        ImportErrorCmp
 
 data ImportComparison
   = ImportClassCmp Proper
@@ -389,9 +389,9 @@ formatDecl conf = case _ of
         formatDataElem (Tuple equals ctors.head)
           `spaceBreak` joinWithMap spaceBreak formatDataElem ctors.tail
     where
-    formatDataElem (Tuple a b) =
-      formatToken conf a
-        `space` formatListElem 2 formatDataCtor conf b
+      formatDataElem (Tuple a b) =
+        formatToken conf a
+          `space` formatListElem 2 formatDataCtor conf b
 
   DeclData head _ ->
     formatDataHead conf head
@@ -413,14 +413,14 @@ formatDecl conf = case _ of
   DeclRole kw1 kw2 name rls ->
     flatten $ words <> NonEmptyArray.toArray roles
     where
-    words =
-      [ formatToken conf kw1
-      , formatToken conf kw2
-      , formatName conf name
-      ]
+      words =
+        [ formatToken conf kw1
+        , formatToken conf kw2
+        , formatName conf name
+        ]
 
-    roles =
-      map (formatToken conf <<< fst) rls
+      roles =
+        map (formatToken conf <<< fst) rls
 
   DeclFixity { keyword: Tuple keyword _, prec: Tuple prec _, operator } ->
     case operator of
@@ -531,8 +531,8 @@ formatHangingDataCtor conf (DataCtor { name, fields }) =
     Nothing -> hangingName
     Just fs -> hangingName `hangApp` map (formatHangingType conf) fs
   where
-  hangingName =
-    hangBreak $ formatName conf name
+    hangingName =
+      hangBreak $ formatName conf name
 
 formatClassHead :: forall e a. Format (Tuple (ClassHead e) (Maybe SourceToken)) e a
 formatClassHead conf (Tuple cls wh) =
@@ -549,30 +549,30 @@ formatClassHead conf (Tuple cls wh) =
       `space`
         foldMap (formatToken conf) wh
   where
-  formatFundeps (Tuple tok (Separated { head, tail })) =
-    formatToken conf tok
-      `space`
-        formatListElem 2 formatFundep conf head
-      `softBreak`
-        joinWithMap softBreak
-          ( \(Tuple sep elem) ->
-              formatToken conf sep
-                `space` formatListElem 2 formatFundep conf elem
-          )
-          tail
+    formatFundeps (Tuple tok (Separated { head, tail })) =
+      formatToken conf tok
+        `space`
+          formatListElem 2 formatFundep conf head
+        `softBreak`
+          joinWithMap softBreak
+            ( \(Tuple sep elem) ->
+                formatToken conf sep
+                  `space` formatListElem 2 formatFundep conf elem
+            )
+            tail
 
 formatConstraints :: forall e a. Format (Tuple (OneOrDelimited (Type e)) SourceToken) e a
 formatConstraints conf (Tuple cs arr) =
   formatOneOrDelimited formatType conf cs
     `space` anchor (formatToken conf unicodeArr)
   where
-  unicodeArr = case arr.value of
-    TokOperator Nothing "<=" | conf.unicode == UnicodeAlways ->
-      arr { value = TokOperator Nothing "⇐" }
-    TokOperator Nothing "⇐" | conf.unicode == UnicodeNever ->
-      arr { value = TokOperator Nothing "<=" }
-    _ ->
-      arr
+    unicodeArr = case arr.value of
+      TokOperator Nothing "<=" | conf.unicode == UnicodeAlways ->
+        arr { value = TokOperator Nothing "⇐" }
+      TokOperator Nothing "⇐" | conf.unicode == UnicodeNever ->
+        arr { value = TokOperator Nothing "<=" }
+      _ ->
+        arr
 
 formatFundep :: forall e a. Format ClassFundep e a
 formatFundep conf = case _ of
@@ -611,11 +611,11 @@ formatInstanceHead conf (Tuple hd mbWh) =
         `flexSpaceBreak` indent hdTypes
         `space` indent (foldMap (formatToken conf) mbWh)
   where
-  hdTypes =
-    foldMap (formatConstraints conf) hd.constraints
-      `spaceBreak` flexGroup do
-        formatQualifiedName conf hd.className
-          `space` indent (joinWithMap spaceBreak (formatType conf) hd.types)
+    hdTypes =
+      foldMap (formatConstraints conf) hd.constraints
+        `spaceBreak` flexGroup do
+          formatQualifiedName conf hd.className
+            `space` indent (joinWithMap spaceBreak (formatType conf) hd.types)
 
 formatInstanceBinding :: forall e a. Format (InstanceBinding e) e a
 formatInstanceBinding conf = case _ of
@@ -663,23 +663,23 @@ formatSignature conf (Labeled { label, separator, value }) =
           anchor (formatToken conf separator)
             `space` anchor (Hang.toFormatDoc formattedPolytype)
       where
-      formattedPolytype =
-        formatHangingPolytype (align width) conf polytype
+        formattedPolytype =
+          formatHangingPolytype (align width) conf polytype
 
-      polytype =
-        toPolytype value
+        polytype =
+          toPolytype value
 
-      width
-        | isUnicode = 2
-        | otherwise = 3
+        width
+          | isUnicode = 2
+          | otherwise = 3
 
-      isUnicode = case conf.unicode of
-        UnicodeAlways -> true
-        UnicodeNever -> false
-        UnicodeSource ->
-          case separator of
-            { value: TokDoubleColon Unicode } -> true
-            _ -> false
+        isUnicode = case conf.unicode of
+          UnicodeAlways -> true
+          UnicodeNever -> false
+          UnicodeSource ->
+            case separator of
+              { value: TokDoubleColon Unicode } -> true
+              _ -> false
 
     TypeArrowLast ->
       label `space` indent do
@@ -750,15 +750,15 @@ type Polytype e =
 toPolytype :: forall e. Type e -> Polytype e
 toPolytype = go []
   where
-  go init = case _ of
-    TypeForall tok vars dot ty ->
-      go (Array.snoc init (PolyForall tok vars dot)) ty
-    TypeArrow ty1 arr ty2 ->
-      go (Array.snoc init (PolyArrow ty1 arr)) ty2
-    TypeConstrained ty1 arr ty2 ->
-      go (Array.snoc init (PolyArrow ty1 arr)) ty2
-    last ->
-      { init, last }
+    go init = case _ of
+      TypeForall tok vars dot ty ->
+        go (Array.snoc init (PolyForall tok vars dot)) ty
+      TypeArrow ty1 arr ty2 ->
+        go (Array.snoc init (PolyArrow ty1 arr)) ty2
+      TypeConstrained ty1 arr ty2 ->
+        go (Array.snoc init (PolyArrow ty1 arr)) ty2
+      last ->
+        { init, last }
 
 formatHangingPolytype :: forall e a. (FormatDoc a -> FormatDoc a) -> FormatHanging (Polytype e) e a
 formatHangingPolytype ind conf { init, last } = case conf.typeArrowPlacement of
@@ -767,51 +767,51 @@ formatHangingPolytype ind conf { init, last } = case conf.typeArrowPlacement of
   TypeArrowFirst ->
     hangBreak $ foldl formatPolyArrowFirst ind init $ anchor $ formatMonotype conf last
     where
-    isUnicode = Array.all isUnicodeArrow init
-    isUnicodeArrow = case conf.unicode of
-      UnicodeAlways ->
-        const true
-      UnicodeNever ->
-        const false
-      UnicodeSource ->
-        case _ of
-          PolyArrow _ { value: TokRightArrow Unicode } -> true
-          PolyArrow _ { value: TokRightFatArrow Unicode } -> true
-          PolyForall { value: TokForall Unicode } _ _ -> true
-          _ -> false
+      isUnicode = Array.all isUnicodeArrow init
+      isUnicodeArrow = case conf.unicode of
+        UnicodeAlways ->
+          const true
+        UnicodeNever ->
+          const false
+        UnicodeSource ->
+          case _ of
+            PolyArrow _ { value: TokRightArrow Unicode } -> true
+            PolyArrow _ { value: TokRightFatArrow Unicode } -> true
+            PolyForall { value: TokForall Unicode } _ _ -> true
+            _ -> false
 
-    formatPolyArrowFirst k = case _ of
-      PolyForall kw vars dot ->
-        \doc ->
-          k (foldl go (formatToken conf kw) vars)
-            `softBreak`
-              ( Monoid.guard (not isUnicode) (fromDoc (Dodo.flexAlt mempty Dodo.space))
-                  <> anchor (formatToken conf dot)
-              )
-            `space` anchor (alignCurrentColumn doc)
-        where
-        go doc tyVar =
-          doc `flexSpaceBreak` indent (formatTypeVarBinding conf tyVar)
-      PolyArrow ty arr ->
-        \doc ->
-          k (flexGroup (formatMonotype conf ty))
-            `spaceBreak` anchor (formatToken conf arr)
-            `space` anchor (alignCurrentColumn doc)
+      formatPolyArrowFirst k = case _ of
+        PolyForall kw vars dot ->
+          \doc ->
+            k (foldl go (formatToken conf kw) vars)
+              `softBreak`
+                ( Monoid.guard (not isUnicode) (fromDoc (Dodo.flexAlt mempty Dodo.space))
+                    <> anchor (formatToken conf dot)
+                )
+              `space` anchor (alignCurrentColumn doc)
+          where
+            go doc tyVar =
+              doc `flexSpaceBreak` indent (formatTypeVarBinding conf tyVar)
+        PolyArrow ty arr ->
+          \doc ->
+            k (flexGroup (formatMonotype conf ty))
+              `spaceBreak` anchor (formatToken conf arr)
+              `space` anchor (alignCurrentColumn doc)
 
   TypeArrowLast ->
     hangBreak $ joinWithMap spaceBreak formatPolyArrowLast init
       `spaceBreak` flexGroup (formatMonotype conf last)
     where
-    formatPolyArrowLast = case _ of
-      PolyForall kw vars dot ->
-        foldl go (formatToken conf kw) vars
-          <> indent (anchor (formatToken conf dot))
-        where
-        go doc tyVar =
-          doc `flexSpaceBreak` indent (formatTypeVarBinding conf tyVar)
-      PolyArrow ty arr ->
-        flexGroup (formatType conf ty)
-          `space` indent (anchor (formatToken conf arr))
+      formatPolyArrowLast = case _ of
+        PolyForall kw vars dot ->
+          foldl go (formatToken conf kw) vars
+            <> indent (anchor (formatToken conf dot))
+          where
+            go doc tyVar =
+              doc `flexSpaceBreak` indent (formatTypeVarBinding conf tyVar)
+        PolyArrow ty arr ->
+          flexGroup (formatType conf ty)
+            `space` indent (anchor (formatToken conf arr))
 
 formatRow :: forall e a. FormatSpace a -> FormatSpace a -> Format (Wrapped (Row e)) e a
 formatRow openSpace closeSpace conf (Wrapped { open, value: Row { labels, tail }, close }) = case labels, tail of
@@ -915,8 +915,8 @@ formatHangingExpr conf = case _ of
       )
       (formatHangingExpr conf lmb.body)
     where
-    binders = flexGroup do
-      joinWithMap spaceBreak (anchor <<< formatBinder conf) lmb.binders
+      binders = flexGroup do
+        joinWithMap spaceBreak (anchor <<< formatBinder conf) lmb.binders
 
   ExprIf ifte ->
     hangBreak $ formatElseIfChain conf $ toElseIfChain ifte
@@ -926,17 +926,17 @@ formatHangingExpr conf = case _ of
       (formatToken conf caseOf.keyword `flexSpaceBreak` indent caseHead)
       (hangBreak (joinWithMap break (flexGroup <<< formatCaseBranch conf) caseOf.branches))
     where
-    caseHead =
-      caseHeadExprs `spaceBreak` anchor (formatToken conf caseOf.of)
+      caseHead =
+        caseHeadExprs `spaceBreak` anchor (formatToken conf caseOf.of)
 
-    caseHeadExprs =
-      foldl
-        ( \doc (Tuple a b) ->
-            (doc <> anchor (formatToken conf a))
-              `spaceBreak` flexGroup (formatExpr conf b)
-        )
-        (flexGroup (formatExpr conf head))
-        tail
+      caseHeadExprs =
+        foldl
+          ( \doc (Tuple a b) ->
+              (doc <> anchor (formatToken conf a))
+                `spaceBreak` flexGroup (formatExpr conf b)
+          )
+          (flexGroup (formatExpr conf head))
+          tail
 
   ExprLet letIn ->
     hangBreak $ formatToken conf letIn.keyword
@@ -981,12 +981,12 @@ data ElseIfChain e
 toElseIfChain :: forall e. IfThenElse e -> NonEmptyArray (ElseIfChain e)
 toElseIfChain ifte = go (pure (IfThen ifte.keyword ifte.cond ifte.then ifte.true)) ifte
   where
-  go acc curr = case curr.false of
-    ExprIf next -> do
-      let chain = ElseIfThen curr.else next.keyword next.cond next.then next.true
-      go (NonEmptyArray.snoc acc chain) next
-    expr ->
-      NonEmptyArray.snoc acc (Else curr.else expr)
+    go acc curr = case curr.false of
+      ExprIf next -> do
+        let chain = ElseIfThen curr.else next.keyword next.cond next.then next.true
+        go (NonEmptyArray.snoc acc chain) next
+      expr ->
+        NonEmptyArray.snoc acc (Else curr.else expr)
 
 formatElseIfChain :: forall e a. Format (NonEmptyArray (ElseIfChain e)) e a
 formatElseIfChain conf = flexGroup <<< joinWithMap spaceBreak case _ of
@@ -1032,14 +1032,14 @@ formatCaseBranch conf (Tuple (Separated { head, tail }) guarded) =
         caseBinders `flexSpaceBreak` indent do
           joinWithMap break (Hang.toFormatDoc <<< formatGuardedExpr conf) guards
   where
-  caseBinders =
-    flexGroup $ foldl
-      ( \doc (Tuple a b) ->
-          (doc <> indent (anchor (formatToken conf a)))
-            `spaceBreak` flexGroup (formatBinder conf b)
-      )
-      (flexGroup (formatBinder conf head))
-      tail
+    caseBinders =
+      flexGroup $ foldl
+        ( \doc (Tuple a b) ->
+            (doc <> indent (anchor (formatToken conf a)))
+              `spaceBreak` flexGroup (formatBinder conf b)
+        )
+        (flexGroup (formatBinder conf head))
+        tail
 
 formatGuardedExpr :: forall e a. FormatHanging (GuardedExpr e) e a
 formatGuardedExpr conf (GuardedExpr ge@{ patterns: Separated { head, tail }, where: Where { expr, bindings } }) =
@@ -1058,9 +1058,9 @@ formatGuardedExpr conf (GuardedExpr ge@{ patterns: Separated { head, tail }, whe
         , hangBreak $ formatWhere conf wh
         ]
   where
-  patternGuards =
-    formatListElem 2 formatPatternGuard conf head
-      `softBreak` formatListTail 2 formatPatternGuard conf tail
+    patternGuards =
+      formatListElem 2 formatPatternGuard conf head
+        `softBreak` formatListTail 2 formatPatternGuard conf tail
 
 formatPatternGuard :: forall e a. Format (PatternGuard e) e a
 formatPatternGuard conf (PatternGuard { binder, expr }) = case binder of
@@ -1113,9 +1113,9 @@ formatValueBinding conf { name, binders, guarded } =
         valBinders `flexSpaceBreak` indent do
           joinWithMap break (Hang.toFormatDoc <<< formatGuardedExpr conf) guards
       where
-      valBinders =
-        formatName conf name `flexSpaceBreak` indent do
-          joinWithMap spaceBreak (anchor <<< flexGroup <<< formatBinder conf) binders
+        valBinders =
+          formatName conf name `flexSpaceBreak` indent do
+            joinWithMap spaceBreak (anchor <<< flexGroup <<< formatBinder conf) binders
 
 formatDoStatement :: forall e a. Format (DoStatement e) e a
 formatDoStatement conf = case _ of
@@ -1187,15 +1187,15 @@ formatRecordLabeled format conf = case _ of
 formatHangingOperatorTree :: forall e a b c. Format (QualifiedName b) e a -> FormatHanging c e a -> FormatHanging (OperatorTree (QualifiedName b) c) e a
 formatHangingOperatorTree formatOperator format conf = go
   where
-  go = case _ of
-    OpPure a -> format conf a
-    OpList head _ tail ->
-      hangOps
-        (go head)
-        (map (\(Tuple op b) -> HangingOp (opWidth op) (formatOperator conf op) (go b)) tail)
+    go = case _ of
+      OpPure a -> format conf a
+      OpList head _ tail ->
+        hangOps
+          (go head)
+          (map (\(Tuple op b) -> HangingOp (opWidth op) (formatOperator conf op) (go b)) tail)
 
-  opWidth (QualifiedName { token }) =
-    token.range.end.column - token.range.start.column
+    opWidth (QualifiedName { token }) =
+      token.range.end.column - token.range.start.column
 
 formatParens :: forall e a b. Format b e a -> Format (Wrapped b) e a
 formatParens format conf (Wrapped { open, value, close }) =
@@ -1254,12 +1254,12 @@ formatList openSpace closeSpace alignment grouped format conf { open, head, tail
       formatToken conf open
         `openSpace` listElems
   where
-  listElems =
-    formatListElem alignment format conf head
-      `softBreak`
-        formatListTail alignment format conf tail
-      `closeSpace`
-        formatToken conf close
+    listElems =
+      formatListElem alignment format conf head
+        `softBreak`
+          formatListTail alignment format conf tail
+        `closeSpace`
+          formatToken conf close
 
 formatListElem :: forall e a b. Int -> Format b e a -> Format b e a
 formatListElem alignment format conf b = flexGroup (align alignment (anchor (format conf b)))
@@ -1272,9 +1272,9 @@ formatListTail alignment format conf =
 flatten :: forall a. Array (FormatDoc a) -> FormatDoc a
 flatten = Array.uncons >>> foldMap format
   where
-  format { head, tail } =
-    head `space` indent do
-      joinWithMap space anchor tail
+    format { head, tail } =
+      head `space` indent do
+        joinWithMap space anchor tail
 
 declareHanging :: forall a. FormatDoc a -> FormatSpace a -> FormatDoc a -> HangingDoc a -> FormatDoc a
 declareHanging label spc separator value =
@@ -1311,61 +1311,61 @@ data DeclGroupSeparator
 formatTopLevelGroups :: forall e a. Format (Array (Declaration e)) e a
 formatTopLevelGroups = formatDeclGroups topDeclGroupSeparator topDeclGroup formatDecl
   where
-  topDeclGroupSeparator = case _, _ of
-    DeclGroupValue a, DeclGroupValue b ->
-      if a == b then DeclGroupSame
-      else DeclGroupSoft
-    DeclGroupValueSignature a, DeclGroupValue b ->
-      if a == b then DeclGroupSame
-      else DeclGroupHard
-    _, DeclGroupValueSignature _ -> DeclGroupHard
-    DeclGroupType _, DeclGroupType _ -> DeclGroupSoft
-    DeclGroupTypeSignature a, DeclGroupType b ->
-      if a == b then DeclGroupSame
-      else DeclGroupHard
-    DeclGroupTypeSignature a, DeclGroupClass b ->
-      if a == b then DeclGroupSame
-      else DeclGroupHard
-    _, DeclGroupTypeSignature _ -> DeclGroupHard
-    DeclGroupClass _, DeclGroupClass _ -> DeclGroupSoft
-    _, DeclGroupClass _ -> DeclGroupHard
-    DeclGroupInstance, DeclGroupInstance -> DeclGroupSoft
-    _, DeclGroupInstance -> DeclGroupHard
-    DeclGroupFixity, DeclGroupFixity -> DeclGroupSoft
-    _, DeclGroupFixity -> DeclGroupHard
-    DeclGroupForeign, DeclGroupForeign -> DeclGroupSoft
-    _, DeclGroupForeign -> DeclGroupHard
-    DeclGroupRole, DeclGroupRole -> DeclGroupSoft
-    _, DeclGroupRole -> DeclGroupHard
-    _, _ -> DeclGroupSoft
+    topDeclGroupSeparator = case _, _ of
+      DeclGroupValue a, DeclGroupValue b ->
+        if a == b then DeclGroupSame
+        else DeclGroupSoft
+      DeclGroupValueSignature a, DeclGroupValue b ->
+        if a == b then DeclGroupSame
+        else DeclGroupHard
+      _, DeclGroupValueSignature _ -> DeclGroupHard
+      DeclGroupType _, DeclGroupType _ -> DeclGroupSoft
+      DeclGroupTypeSignature a, DeclGroupType b ->
+        if a == b then DeclGroupSame
+        else DeclGroupHard
+      DeclGroupTypeSignature a, DeclGroupClass b ->
+        if a == b then DeclGroupSame
+        else DeclGroupHard
+      _, DeclGroupTypeSignature _ -> DeclGroupHard
+      DeclGroupClass _, DeclGroupClass _ -> DeclGroupSoft
+      _, DeclGroupClass _ -> DeclGroupHard
+      DeclGroupInstance, DeclGroupInstance -> DeclGroupSoft
+      _, DeclGroupInstance -> DeclGroupHard
+      DeclGroupFixity, DeclGroupFixity -> DeclGroupSoft
+      _, DeclGroupFixity -> DeclGroupHard
+      DeclGroupForeign, DeclGroupForeign -> DeclGroupSoft
+      _, DeclGroupForeign -> DeclGroupHard
+      DeclGroupRole, DeclGroupRole -> DeclGroupSoft
+      _, DeclGroupRole -> DeclGroupHard
+      _, _ -> DeclGroupSoft
 
-  topDeclGroup = case _ of
-    DeclData { name: Name { name } } _ -> DeclGroupType name
-    DeclType { name: Name { name } } _ _ -> DeclGroupType name
-    DeclNewtype { name: Name { name } } _ _ _ -> DeclGroupType name
-    DeclClass { name: Name { name } } _ -> DeclGroupClass name
-    DeclKindSignature _ (Labeled { label: Name { name } }) -> DeclGroupTypeSignature name
-    DeclSignature (Labeled { label: Name { name } }) -> DeclGroupValueSignature name
-    DeclValue { name: Name { name } } -> DeclGroupValue name
-    DeclInstanceChain _ -> DeclGroupInstance
-    DeclDerive _ _ _ -> DeclGroupInstance
-    DeclFixity _ -> DeclGroupFixity
-    DeclForeign _ _ _ -> DeclGroupForeign
-    DeclRole _ _ _ _ -> DeclGroupRole
-    DeclError _ -> DeclGroupUnknown
+    topDeclGroup = case _ of
+      DeclData { name: Name { name } } _ -> DeclGroupType name
+      DeclType { name: Name { name } } _ _ -> DeclGroupType name
+      DeclNewtype { name: Name { name } } _ _ _ -> DeclGroupType name
+      DeclClass { name: Name { name } } _ -> DeclGroupClass name
+      DeclKindSignature _ (Labeled { label: Name { name } }) -> DeclGroupTypeSignature name
+      DeclSignature (Labeled { label: Name { name } }) -> DeclGroupValueSignature name
+      DeclValue { name: Name { name } } -> DeclGroupValue name
+      DeclInstanceChain _ -> DeclGroupInstance
+      DeclDerive _ _ _ -> DeclGroupInstance
+      DeclFixity _ -> DeclGroupFixity
+      DeclForeign _ _ _ -> DeclGroupForeign
+      DeclRole _ _ _ _ -> DeclGroupRole
+      DeclError _ -> DeclGroupUnknown
 
 formatLetGroups :: forall e a. Format (Array (LetBinding e)) e a
 formatLetGroups = formatDeclGroups letDeclGroupSeparator letGroup formatLetBinding
   where
-  letDeclGroupSeparator = case _, _ of
-    _, DeclGroupValueSignature _ -> DeclGroupHard
-    _, _ -> DeclGroupSame
+    letDeclGroupSeparator = case _, _ of
+      _, DeclGroupValueSignature _ -> DeclGroupHard
+      _, _ -> DeclGroupSame
 
-  letGroup = case _ of
-    LetBindingSignature (Labeled { label: Name { name } }) -> DeclGroupValueSignature name
-    LetBindingName { name: Name { name } } -> DeclGroupValue name
-    LetBindingPattern _ _ _ -> DeclGroupUnknown
-    LetBindingError _ -> DeclGroupUnknown
+    letGroup = case _ of
+      LetBindingSignature (Labeled { label: Name { name } }) -> DeclGroupValueSignature name
+      LetBindingName { name: Name { name } } -> DeclGroupValue name
+      LetBindingPattern _ _ _ -> DeclGroupUnknown
+      LetBindingError _ -> DeclGroupUnknown
 
 formatDeclGroups
   :: forall e a b
@@ -1376,36 +1376,36 @@ formatDeclGroups
 formatDeclGroups declSeparator k format conf =
   maybe mempty joinDecls <<< foldr go Nothing
   where
-  go decl = Just <<< case _ of
-    Nothing ->
-      { doc: mempty
-      , sep: DeclGroupSame
-      , group: k decl
-      , decls: NonEmptyList.singleton decl
-      }
-    Just acc -> do
-      let group = k decl
-      case declSeparator group acc.group of
-        DeclGroupSame ->
-          { doc: acc.doc
-          , sep: acc.sep
-          , group
-          , decls: NonEmptyList.cons decl acc.decls
-          }
-        sep ->
-          { doc: joinDecls acc
-          , sep
-          , group
-          , decls: NonEmptyList.singleton decl
-          }
+    go decl = Just <<< case _ of
+      Nothing ->
+        { doc: mempty
+        , sep: DeclGroupSame
+        , group: k decl
+        , decls: NonEmptyList.singleton decl
+        }
+      Just acc -> do
+        let group = k decl
+        case declSeparator group acc.group of
+          DeclGroupSame ->
+            { doc: acc.doc
+            , sep: acc.sep
+            , group
+            , decls: NonEmptyList.cons decl acc.decls
+            }
+          sep ->
+            { doc: joinDecls acc
+            , sep
+            , group
+            , decls: NonEmptyList.singleton decl
+            }
 
-  joinDecls acc = case acc.sep of
-    DeclGroupSame ->
-      newDoc `break` acc.doc
-    DeclGroupSoft ->
-      newDoc `flexDoubleBreak` acc.doc
-    DeclGroupHard ->
-      newDoc `break` forceMinSourceBreaks 2 acc.doc
-    where
-    newDoc =
-      joinWithMap break (format conf) acc.decls
+    joinDecls acc = case acc.sep of
+      DeclGroupSame ->
+        newDoc `break` acc.doc
+      DeclGroupSoft ->
+        newDoc `flexDoubleBreak` acc.doc
+      DeclGroupHard ->
+        newDoc `break` forceMinSourceBreaks 2 acc.doc
+      where
+        newDoc =
+          joinWithMap break (format conf) acc.decls
