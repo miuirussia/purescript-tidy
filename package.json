@@ -1,5 +1,5 @@
 {
-  "name": "purs-tidy",
+  "name": "@kdeveloper/purs-tidy",
   "version": "0.11.0",
   "type": "module",
   "description": "A syntax tidy-upper (formatter) for PureScript.",
@@ -29,7 +29,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/natefaubion/purescript-tidy.git"
+    "url": "git+https://github.com/miuirussia/purescript-tidy.git"
   },
   "keywords": [
     "PureScript",
@@ -43,6 +43,9 @@
   },
   "homepage": "https://github.com/natefaubion/purescript-tidy#readme",
   "devDependencies": {
-    "purs-backend-es": "^1.4.2"
+    "esbuild": "^0.14.54",
+    "purescript": "^0.15.15",
+    "purs-backend-es": "^1.4.2",
+    "spago": "^0.21.0"
   }
 }
